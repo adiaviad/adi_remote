@@ -1,7 +1,6 @@
 package com.example.serialgampad
 import kotlin.experimental.and
 import kotlin.experimental.xor
-import kotlin.system.exitProcess
 
 const val CRSF_SYNC: Byte = 0xC8.toByte()
 fun userOut(string: String) {
@@ -138,7 +137,7 @@ fun signedByte(b: Byte): Int {
     return if (b.toInt() >= 128) b.toInt() - 256 else b.toInt()
 }
 
-fun packCRSFToBytes(channels: List<Int>): ByteArray {
+fun packCRSFToBytes(channels: IntArray): ByteArray {
     if (channels.size != 16) {
         throw IllegalArgumentException("CRSF must have 16 channels")
     }
@@ -164,7 +163,7 @@ fun packCRSFToBytes(channels: List<Int>): ByteArray {
     return result.toByteArray()
 }
 
-fun channelsCRSFToChannelsPacket(channels: List<Int>): ByteArray {
+fun channelsCRSFToChannelsPacket(channels: IntArray): ByteArray {
     val result = mutableListOf<Byte>()
     result.add(CRSF_SYNC)
     result.add(24.toByte())
