@@ -34,7 +34,8 @@ import java.util.Objects;
 public class RCActivity extends Activity {
     boolean enableButtonOn;
 
-    private enum UsbPermission { Unknown, Requested, Granted, Denied }
+    private enum UsbPermission {Unknown, Requested, Granted, Denied}
+
     private UsbPermission usbPermission = UsbPermission.Unknown;
     private static final String INTENT_ACTION_GRANT_USB = "com.example.serialgampad" + ".GRANT_USB";
     private Handler mainLooper;
@@ -42,7 +43,7 @@ public class RCActivity extends Activity {
     UsbSerialPort usbSerialPort;
     int[] channels;
     Button buttonBFPass;
-    JoystickView joystickRight,joystickLeft;
+    JoystickView joystickRight, joystickLeft;
     TextView mTextViewAngleRight;
     TextView mTextViewStrengthRight;
     TextView mTextViewCoordinateRight;
@@ -52,20 +53,20 @@ public class RCActivity extends Activity {
     TextView mTextLog;
     String log;
     boolean serialConnected;
-    int baudRate=115200,portNumber=0;
+    int baudRate = 115200, portNumber = 0;
     byte[] inputBuffer;
-    int RcPacketHz=50;
+    int RcPacketHz = 50;
     private BroadcastReceiver broadcastReceiver;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        mainLooper=new Handler(Looper.getMainLooper());
+        mainLooper = new Handler(Looper.getMainLooper());
 
-        serialConnected=false;
+        serialConnected = false;
         usbSerialPort = null;
-        inputBuffer=new byte[64];
+        inputBuffer = new byte[64];
 
         channels = new int[16];
         Arrays.fill(channels, 0);
@@ -91,32 +92,44 @@ public class RCActivity extends Activity {
             this.registerReceiver(broadcastReceiver, new IntentFilter(INTENT_ACTION_GRANT_USB));
         }
 
-        buttonBFPass=findViewById(R.id.buttonBFPass);
+        buttonBFPass = findViewById(R.id.buttonBFPass);
         buttonBFPass.setOnClickListener(this::initBFPassthrough);
 
         mainLoop();//starts loop
     }
-    void mainLoop(){
-        if (usbSerialPort!=null && serialConnected && enableButtonOn) {
-            sendRcChannelsPacket();
-            try {
-                int len=usbSerialPort.read(inputBuffer,64,100);
-                appendToLog(Arrays.toString(Arrays.copyOf(inputBuffer,len)));
-            } catch (IOException e) {
-                disconnect();
-                appendToLog(e.getMessage());
+
+    void mainLoop() {
+        String status = "";
+        if (usbSerialPort != null && serialConnected) {
+            status = "connected";
+            if (enableButtonOn) {
+                sendRcChannelsPacket();
+                status+=" and sending";
+                try {
+                    int len = usbSerialPort.read(inputBuffer, 64, 100);
+                    appendToLog(Arrays.toString(Arrays.copyOf(inputBuffer, len)));
+                    status += " read " + len + " bytes " + Arrays.toString(Arrays.copyOf(inputBuffer, len));
+                } catch (IOException e) {
+                    disconnect();
+                    appendToLog(e.getMessage());
+                }
             }
-        }else {
+        } else {
             setJoysticksVisibility(View.INVISIBLE);
+            status = "disconnred";
         }
-        mainLooper.postDelayed(this::mainLoop,1000/RcPacketHz);
+        log = status;
+        mTextLog.setText(status);
+        mainLooper.postDelayed(this::mainLoop, 1000 / RcPacketHz);
     }
-    void appendToLog(String str){
-        log+=str;
-        if(mTextLog!=null){
+
+    void appendToLog(String str) {
+        log += str;
+        if (mTextLog != null) {
             mTextLog.setText(log);
         }
     }
+
     @Override
     public void onStop() {
         this.unregisterReceiver(broadcastReceiver);
@@ -126,57 +139,59 @@ public class RCActivity extends Activity {
     @Override
     public void onResume() {
         super.onResume();
-        if(!serialConnected && (usbPermission == UsbPermission.Unknown || usbPermission == UsbPermission.Granted))
+        if (!serialConnected && (usbPermission == UsbPermission.Unknown || usbPermission == UsbPermission.Granted))
             mainLooper.post(this::openSerialPort);
     }
 
     @Override
     public void onPause() {
-        if(serialConnected) {
+        if (serialConnected) {
             disconnect();
         }
         super.onPause();
     }
+
     @Override
     protected void onNewIntent(Intent intent) {
-        if("android.hardware.usb.action.USB_DEVICE_ATTACHED".equals(intent.getAction())) {
+        if ("android.hardware.usb.action.USB_DEVICE_ATTACHED".equals(intent.getAction())) {
             appendToLog("USB device attached\r\n");
         }
         super.onNewIntent(intent);
     }
 
-    void initJoysticks(){
+    void initJoysticks() {
 
-        mTextViewAngleRight=findViewById(R.id.textView_angle_right);
-        mTextViewStrengthRight=findViewById(R.id.textView_strength_right);
-        mTextViewCoordinateRight=findViewById(R.id.textView_coordinate_right);
-        mTextViewAngleLeft=findViewById(R.id.textView_angle_left);
-        mTextViewStrengthLeft=findViewById(R.id.textView_strength_left);
-        mTextViewCoordinateLeft=findViewById(R.id.textView_coordinate_left);
+        mTextViewAngleRight = findViewById(R.id.textView_angle_right);
+        mTextViewStrengthRight = findViewById(R.id.textView_strength_right);
+        mTextViewCoordinateRight = findViewById(R.id.textView_coordinate_right);
+        mTextViewAngleLeft = findViewById(R.id.textView_angle_left);
+        mTextViewStrengthLeft = findViewById(R.id.textView_strength_left);
+        mTextViewCoordinateLeft = findViewById(R.id.textView_coordinate_left);
         joystickRight = findViewById(R.id.joystickView_right);
-        joystickRight.setOnMoveListener(RcPacketHz, (angle, strength) ->{
-            mTextViewAngleRight.setText(angle+"°");
-            mTextViewStrengthRight.setText(strength+"%");
-            int x=joystickRight.getNormalizedX();
-            int y=joystickRight.getNormalizedY();
-            mTextViewCoordinateRight.setText(x+","+y);
-            channels[1]=(int)(x*(1984.0/100.0));
-            channels[2]=(int)(y*(1984.0/100.0));
+        joystickRight.setOnMoveListener(RcPacketHz, (angle, strength) -> {
+            mTextViewAngleRight.setText(angle + "°");
+            mTextViewStrengthRight.setText(strength + "%");
+            int x = joystickRight.getNormalizedX();
+            int y = joystickRight.getNormalizedY();
+            mTextViewCoordinateRight.setText(x + "," + y);
+            channels[1] = (int) (x * (1984.0 / 100.0));
+            channels[2] = (int) (y * (1984.0 / 100.0));
         });
 
         joystickLeft = findViewById(R.id.joystickView_left);
-        joystickLeft.setOnMoveListener(RcPacketHz, (angle, strength) ->{
-            mTextViewAngleLeft.setText(angle+"°");
-            mTextViewStrengthLeft.setText(strength+"%");
-            int x=joystickLeft.getNormalizedX();
-            int y=joystickLeft.getNormalizedY();
-            mTextViewCoordinateLeft.setText(x+","+y);
-            channels[3]=(int)(x*(1984.0/100.0));
-            channels[4]=(int)(y*(1984.0/100.0));
+        joystickLeft.setOnMoveListener(RcPacketHz, (angle, strength) -> {
+            mTextViewAngleLeft.setText(angle + "°");
+            mTextViewStrengthLeft.setText(strength + "%");
+            int x = joystickLeft.getNormalizedX();
+            int y = joystickLeft.getNormalizedY();
+            mTextViewCoordinateLeft.setText(x + "," + y);
+            channels[3] = (int) (x * (1984.0 / 100.0));
+            channels[4] = (int) (y * (1984.0 / 100.0));
         });
         setJoysticksVisibility(View.INVISIBLE);
     }
-    void setJoysticksVisibility(int visibility){
+
+    void setJoysticksVisibility(int visibility) {
         mTextViewAngleRight.setVisibility(visibility);
         mTextViewStrengthRight.setVisibility(visibility);
         mTextViewCoordinateRight.setVisibility(visibility);
@@ -187,31 +202,31 @@ public class RCActivity extends Activity {
         joystickRight.setVisibility(visibility);
     }
 
-    boolean openSerialPort(){
-        UsbDevice device=null;
-        UsbManager usbManager= (UsbManager) this.getSystemService(Context.USB_SERVICE);
+    boolean openSerialPort() {
+        UsbDevice device = null;
+        UsbManager usbManager = (UsbManager) this.getSystemService(Context.USB_SERVICE);
 //        for (UsbDevice d : usbManager.getDeviceList().values())
 //        {
 //            if(d!=null){
 //                device=d;
 //            }
 //        }
-        List<UsbSerialDriver> avaibleDrivers=UsbSerialProber.getDefaultProber().findAllDrivers(usbManager);
-        if(avaibleDrivers.size()==0){
+        List<UsbSerialDriver> avaibleDrivers = UsbSerialProber.getDefaultProber().findAllDrivers(usbManager);
+        if (avaibleDrivers.size() == 0) {
             return false;
         }
         UsbSerialDriver driver = UsbSerialProber.getDefaultProber().findAllDrivers(usbManager).get(0);//UsbSerialProber.getDefaultProber().probeDevice(device);
-        if(driver==null){
+        if (driver == null) {
             appendToLog("connection failed, no driver\r\n");
             return false;
         }
-        if(driver.getPorts().size()<1){
+        if (driver.getPorts().size() < 1) {
             appendToLog("connection failed, no ports on device");
             return false;
         }
         usbSerialPort = driver.getPorts().get(portNumber);
         UsbDeviceConnection usbConnection = usbManager.openDevice(driver.getDevice());
-        if(usbConnection == null && usbPermission == UsbPermission.Unknown && !usbManager.hasPermission(driver.getDevice())) {
+        if (usbConnection == null && usbPermission == UsbPermission.Unknown && !usbManager.hasPermission(driver.getDevice())) {
             usbPermission = UsbPermission.Requested;
             int flags = Build.VERSION.SDK_INT >= Build.VERSION_CODES.M ? PendingIntent.FLAG_MUTABLE : 0;
             Intent intent = new Intent(INTENT_ACTION_GRANT_USB);
@@ -220,7 +235,7 @@ public class RCActivity extends Activity {
             usbManager.requestPermission(driver.getDevice(), usbPermissionIntent);
             return false;
         }
-        if(usbConnection == null) {
+        if (usbConnection == null) {
             if (!usbManager.hasPermission(driver.getDevice()))
                 appendToLog("connection failed: permission denied");
             else
@@ -229,9 +244,9 @@ public class RCActivity extends Activity {
         }
         try {
             usbSerialPort.open(usbConnection);
-            try{
+            try {
                 usbSerialPort.setParameters(baudRate, 8, 1, UsbSerialPort.PARITY_NONE);
-            }catch (UnsupportedOperationException e){
+            } catch (UnsupportedOperationException e) {
                 appendToLog("unsupport setparameters");
             }
             appendToLog("connected");
@@ -242,46 +257,49 @@ public class RCActivity extends Activity {
         }
         return true;
     }
-    void initBFPassthrough(View view){
-        if(view.getId()==R.id.buttonBFPass){
+
+    void initBFPassthrough(View view) {
+        if (view.getId() == R.id.buttonBFPass) {
             appendToLog("sf");
-            if(serialConnected&&usbSerialPort!=null){
+            if (serialConnected && usbSerialPort != null) {
                 try {
-                    usbSerialPort.write("#".getBytes(StandardCharsets.US_ASCII),50);
+                    usbSerialPort.write("#".getBytes(StandardCharsets.US_ASCII), 50);
                 } catch (IOException e) {
                     disconnect();
                     throw new RuntimeException(e);
                 }
-                mainLooper.postDelayed(()-> {
+                mainLooper.postDelayed(() -> {
                     try {
-                        usbSerialPort.write(("serialpassthrough 1 "+baudRate).getBytes(StandardCharsets.US_ASCII),100);
+                        usbSerialPort.write(("serialpassthrough 1 " + baudRate).getBytes(StandardCharsets.US_ASCII), 100);
                         setJoysticksVisibility(View.VISIBLE);
-                        enableButtonOn=true;
+                        enableButtonOn = true;
                     } catch (IOException e) {
                         disconnect();
                         throw new RuntimeException(e);
                     }
-                },1000);
+                }, 1000);
             }
         }
     }
 
-    void sendRcChannelsPacket(){
-        byte[] packet=CRSFKt.channelsCRSFToChannelsPacket(channels);
+    void sendRcChannelsPacket() {
+        byte[] packet = CRSFKt.channelsCRSFToChannelsPacket(channels);
         try {
-            usbSerialPort.write(packet,20);
+            usbSerialPort.write(packet, 20);
         } catch (IOException e) {
-            serialConnected =false;
+            serialConnected = false;
             Log.e(this.getClass().getName(), Objects.requireNonNull(e.getMessage()));
             appendToLog(e.getMessage());
         }
     }
+
     private void disconnect() {
         serialConnected = false;
         appendToLog("disconnected");
         try {
             usbSerialPort.close();
-        } catch (IOException ignored) {}
+        } catch (IOException ignored) {
+        }
         usbSerialPort = null;
     }
 
